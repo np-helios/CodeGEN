@@ -11,16 +11,16 @@ from langchain.chains import RetrievalQA
 import gradio as gr
 
 
-REPO_PATH = "./"  # Current repository path
+REPO_PATH = "./" 
 COLLECTION_NAME = "code-repository"
-OLLAMA_MODEL = "gemma3:12b"  # You can change to any model available in your Ollama instance
+OLLAMA_MODEL = "gemma3:12b"  
 BASE_URL = "https://2wv5trgkcfu896-11434.proxy.runpod.net"
 
 
 embeddings = FastEmbedEmbeddings(model_name="thenlper/gte-large")
 
 
-client = QdrantClient(path="./qdrant_db")  # Store locally
+client = QdrantClient(path="./qdrant_db")  
 
 sample_text = "S"
 sample_embedding = embeddings.embed_query(sample_text)
@@ -30,7 +30,7 @@ try:
     collection_info = client.get_collection(collection_name=COLLECTION_NAME)
     print(f"Collection '{COLLECTION_NAME}' already exists")
 except (UnexpectedResponse, ValueError):
-    # Create new collection with cosine similarity
+    
     client.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(size=(len(embeddings.embed_query("Nishtha Pandey"))), distance=Distance.COSINE),
@@ -46,13 +46,13 @@ vector_store = QdrantVectorStore(
 
 
 def load_code_repository(repo_path):
-    # Define file extensions to include
+    
     code_extensions = [".py", ".js", ".java", ".cpp", ".c", ".h", ".cs", ".go", ".rb", ".php", ".ts", ".html", ".css"]
 
-    # Create a list of glob patterns for each extension
+    
     glob_patterns = [f"**/*{ext}" for ext in code_extensions]
 
-    # Load all code files
+   
     all_files = []
     for pattern in glob_patterns:
         loader = DirectoryLoader(
@@ -69,7 +69,7 @@ def load_code_repository(repo_path):
 
 
 def process_documents(documents):
-    # Use a code-optimized splitter
+   
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1500,
         chunk_overlap=150,
@@ -85,7 +85,7 @@ def index_repository():
     documents = load_code_repository(REPO_PATH)
     chunks = process_documents(documents)
 
-    # Add documents to vector store
+   
     vector_store.add_documents(documents=chunks)
     print("Repository indexed successfully")
 
@@ -114,10 +114,10 @@ PROMPT = PromptTemplate(
 def create_rag_chain():
     retriever = vector_store.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": 5}  # Retrieve top 5 most relevant chunks
+        search_kwargs={"k": 5}  
     )
 
-    # Create the RAG chain
+   
     rag_chain = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
@@ -142,7 +142,7 @@ def query_code_repository(query, rag_chain=None):
 
 if __name__ == "__main__":
     index_repository()
-    # Reuse the RAG chain from the previous code
+    
     rag_chain = create_rag_chain()
 
     def process_query(query):
@@ -151,10 +151,10 @@ if __name__ == "__main__":
 
         result = query_code_repository(query, rag_chain)
 
-        # Format the response
+        
         response = result["answer"]
 
-        # Add source information
+        
         response += "\n\n**Sources:**\n"
         for i, doc in enumerate(result["source_documents"]):
             source_path = doc.metadata.get('source', 'Unknown')
@@ -162,7 +162,7 @@ if __name__ == "__main__":
 
         return response
 
-    # Create the Gradio interface
+   
     demo = gr.Interface(
         fn=process_query,
         inputs=gr.Textbox(lines=2, placeholder="Ask a question about your code repository..."),
@@ -171,5 +171,5 @@ if __name__ == "__main__":
         description="Ask questions about your code repository and get context-aware answers."
     )
 
-    # Launch the interface
+   
     demo.launch(share=False)
